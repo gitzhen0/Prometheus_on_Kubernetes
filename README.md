@@ -149,10 +149,10 @@ chmod +x deploy_project.sh
 ---
 ### Alertmanager Features
 #### Alerts Definition
-* see `prometheus/prometheus-configmap.yaml`
+* See `prometheus/prometheus-configmap.yaml`
 #### Trigger Alerts
 * Use this command to trigger alerts
-	* can be used at whichever node
+	* Can be used in whichever node
 ```sh
 stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 ```
@@ -167,9 +167,9 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 	* `--metrics-brief`
 		* Prints summarized metrics at the end of the test
 #### Receive Alert From Email
-* skip
+* Skip
 #### Receive Alert From DingTalk
-* skip
+* Skip
 #### Inhibition
 * Due to Inhibition rules setup inside, only one of two alerts will be sent
 
@@ -228,5 +228,6 @@ chmod +x <scriptname>
 stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 ```
 ---
-## TODO/UPDATE/FIX
-1. 
+## TODO
+1. Upgrade code quality
+2. deploy a redis on K8s and monitor it
