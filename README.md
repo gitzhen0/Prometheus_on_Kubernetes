@@ -221,8 +221,8 @@ watch -n 1 cat /etc/prometheus/prometheus.yml
 # Delete everything applied by kustomization
 kubectl delete -k .
 
-# When shell script not working/need permission
-chmod +x <scriptname>
+# When shell script not working/needs permission
+chmod +x <scriptpath>
 
 # Stressing command
 stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
