@@ -41,11 +41,14 @@
     * v0.28.0
 ---
 ### Notes
-1. PV is fixed on worker2 node, 
+1. **Prometheus Persistent Volume**
+    * PV is fixed on worker2 node, 
     * feel free to bind to other nodes (master node not tested yet)
-2. kube-state-metrics From git clone and removed extraneous files
+2. **kube-state-metrics**
+    * Code from git clone and removed extraneous files
     * with tiny modifications  
-3. The endpoints on Prometheus webpage with start with `https` won't be accessible
+3. **HTTPS `/metrics` endpoints**
+    * The endpoints on Prometheus webpage with start with `https` won't be accessible
     * because local browser don't have the certs
     * but the data can be queried in `Graph` page
         * because prometheus got the data in its server 
@@ -53,16 +56,15 @@
 git clone https://github.com/kubernetes/kube-state-metrics.git
 cd kube-state-metrics/examples/standard
 ```
-
-3. NodePort is hardcoded for convenience
+4. **NodePort Selection** 
+    * NodePort is hardcoded for convenience
 	* Prometheus → **31090**
 		* Corresponds to its original **9090** Port 
 	* Alertmanager → **31093**
 		* Corresponds to its original **9093** Port 
 	* Grafana → **31300**
 		* Corresponds to its original **3000** Port 
-
-4. Node Assignment
+5. **Node Assignment**
 	* **cp**
 	    * Just control-plane
 	* **worker1**
