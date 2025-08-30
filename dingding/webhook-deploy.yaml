@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook
+  namespace: monitor
+  labels:
+    app: webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook
+  template:
+    metadata:
+      labels:
+        app: webhook
+    spec:
+      volumes:
+        - name: webhookcfg
+          configMap:
+            name: webhook-conf
+            items:
+              - key: config.yaml
+                path: config.yaml
+              - key: template.tmpl
+                path: template.tmpl
+      containers:
+        - name: webhook
+          image: timonwong/prometheus-webhook-dingtalk:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --web.listen-address=:8060
+            - --config.file=/etc/webhook/config.yaml
+          ports:
+            - containerPort: 8060
+          volumeMounts:
+            - mountPath: '/etc/webhook'
+              name: webhookcfg

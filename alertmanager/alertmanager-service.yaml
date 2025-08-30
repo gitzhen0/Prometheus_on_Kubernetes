@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitor
+  labels:
+    app: alertmanager
+spec:
+  selector:
+    app: alertmanager
+  type: NodePort
+  ports:
+    - name: web
+      port: 9093
+      nodePort: 31093      # 写死的 NodePort，必须在 30000–32767 范围内
+      targetPort: http

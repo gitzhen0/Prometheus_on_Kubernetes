@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitor
+
+resources:
+  - webhook-deploy.yaml
+  - webhook-service.yaml
+
+configMapGenerator:
+  - name: webhook-conf
+    files:
+      - config.yaml=webhook-config.yaml   # 渲染后的 config (由 tmpl/envsubst 生成)
+      - template.tmpl=template_webhook.tmpl
+generatorOptions:
+  disableNameSuffixHash: true

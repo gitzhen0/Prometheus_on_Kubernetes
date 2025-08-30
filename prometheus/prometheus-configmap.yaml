@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitor
+data:
+  rules.yml: |
+    groups:
+    - name: recording_rules
+      rules:
+        # 内存使用率（百分比）
+        - record: job:node_memory_usage:percent
+          expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes)) / node_memory_MemTotal_bytes * 100
+
+        # CPU 使用率（百分比）
+        - record: job:node_cpu_usage:percent
+          expr: (1 - avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[1m]))) * 100
+
+    - name: test-node-mem
+      rules:
+        - alert: NodeMemoryUsage
+          expr: job:node_memory_usage:percent > 30
+          for: 2m
+          labels:
+            team: node
+            severity: critical
+          annotations:
+            summary: "{{$labels.instance}}: High Memory usage detected"
+            description: "{{$labels.instance}}: Memory usage is above 30% (current value is: {{$value}})"
+
+    - name: test-node-cpu
+      rules:
+        - alert: NodeCPUUsage
+          expr: job:node_cpu_usage:percent > 50
+          for: 2m
+          labels:
+            team: node
+            severity: normal
+          annotations:
+            summary: "{{$labels.instance}}: High CPU usage detected"
+            description: "{{$labels.instance}}: CPU usage is above 50% (current value is: {{$value}})"
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s # Prometheus每隔15s就会从所有配置的目标端点抓取最新的数据
+      scrape_timeout: 15s  # 某个抓取操作在 15 秒内未完成，会被视为超时，不会包含在最新的数据中。
+      evaluation_interval: 15s #  # 每15s对告警规则进行计算
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093 
+
+    rule_files:
+    - /etc/prometheus/rules.yml
+
+    scrape_configs:
+      - job_name: "prometheus"
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      - job_name: 'node-exporters' # 监控 node exporter (node)
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]  # 获取到地址
+            regex: '(.*):10250' # 用正则regex匹配上面获取到的地址，(.*)获取到的是ip地址部分，加括号代表存入一个正则分组
+            replacement: '${1}:9100' # 取出上面正则分组的内容即ip地址，然后后面拼一个9100端口，即完成端口替换
+            target_label: __address__ # 替换的目标
+            action: replace           # 动作为replace
+          - action: labelmap # 增加
+            regex: __meta_kubernetes_node_label_(.+)
+
+      - job_name: 'kubelet' # 监控 kubelet
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+
+      - job_name: 'kubernetes-cadvisor' # 监控 cadvisor (容器)
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            replacement: /metrics/cadvisor  # <nodeip>/metrics -> <nodeip>/metrics/cadvisor
+            target_label: __metrics_path__
+
+      - job_name: 'kube-apiservers' # 监控 kube-apiserver
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels:
+              - __meta_kubernetes_namespace
+              - __meta_kubernetes_service_name
+              - __meta_kubernetes_endpoint_port_name
+            # 把符合要求的保留下来
+            action: keep
+            regex: default;kubernetes;https
+
+      - job_name: 'kube-controller-manager' # 监控 kube-controller-manager
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels:
+              [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: kube-system;kube-controller-manager;https-metrics
+            # 这里的 https-metrics 名字与你 svc 中为 ports 起的名字保持一致
+
+      - job_name: "kube-scheduler" # 监控 kube-scheduler
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels:
+              [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: kube-system;kube-scheduler;https-metrics
+            # svc 中 port 的 name 与此保持一致
+
+      - job_name: 'etcd' # 监控 etcd
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: http
+        relabel_configs:
+          - source_labels:
+              [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: kube-system;etcd;http
+
+      - job_name: "kubernetes-endpoints" # Service Discovvery 自动发现 k8s 上的服务 (包含 coredns)
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          # 1. 只保留 Service 上有注解 prometheus.io/scrape = "true" 的目标
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+
+          # 2. 如果注解中有 scheme（http/https），则映射到 __scheme__
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+
+          # 3. 如果注解中指定了 path，则替换 __metrics_path__
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+
+          # 4. 用 Service 注解中的 port 重写地址 __address__ 为 ip:port
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+
+          # 5. 把所有 Service 标签复制为 Prometheus label
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+
+          # 6. 显式标注 namespace 标签
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+
+          # 7. 显式标注 service 名称
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+          # 8. 显式标注 pod 名称
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name

@@ -1,0 +1,21 @@
+{{ define "email.html" }}
+{{- if gt (len .Alerts.Firing) 0 -}} {{/* 如果 Firing 的数量大于 0 */}}
+    @报警<br>
+    {{- range .Alerts.Firing }}
+    <strong>实例:</strong> {{ .Labels.instance }}<br>
+    <strong>概述:</strong> {{ .Annotations.summary }}<br>  <!-- 来源于 rules.yaml 的定义 -->
+    <strong>详情:</strong> {{ .Annotations.description }}<br> <!-- 来源于 rules.yaml 的定义 -->
+    <strong>时间:</strong> {{ (.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }} {{/* 格式化报警时间（加8小时） */}}
+    <br>
+    {{- end -}}
+{{- end }}
+{{- if gt (len .Alerts.Resolved) 0 -}} {{/* 如果 resolved 的数量大于 0 */}}
+    @恢复<br>
+    {{- range .Alerts.Resolved }}
+    <strong>实例:</strong> {{ .Labels.instance }}<br>
+    <strong>信息:</strong> {{ .Annotations.summary }}<br>
+    <strong>恢复:</strong> {{ (.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    <br>
+    {{- end -}}
+{{- end }}
+{{ end }}

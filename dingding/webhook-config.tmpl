@@ -1,0 +1,22 @@
+templates:
+  - /etc/webhook/template.tmpl
+targets:
+  webhook1:
+    url: ${DINGTALK_URL}
+    secret: ${DINGTALK_SECRET}
+    message:
+      text: |
+        {{ template "template_webhook.tmpl" . }}
+        @${MOBILE_1} @${MOBILE_2}
+    mention:
+      mobiles: ['${MOBILE_1}','${MOBILE_2}']
+  webhook_mention_all:
+    url: ${DINGTALK_URL}
+    secret: ${DINGTALK_SECRET}
+    mention:
+      all: true
+  webhook_mention_users:
+    url: ${DINGTALK_URL}
+    secret: ${DINGTALK_SECRET}
+    mention:
+      mobiles: ['${MOBILE_1}']

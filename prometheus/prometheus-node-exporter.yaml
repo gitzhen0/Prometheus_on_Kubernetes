@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: monitor
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      # 由于我们要获取到的数据是主机的监控指标数据，而我们的 node-exporter 是运行在容器中的，
+      # 所以我们必须确保在容器内可以看到宿主机上的一些状态信息，为此我们做了两件事
+      # 第一：配置了如下三条Pod安全策略为true，确保在pod内可以访问到宿主机上的PID namespace、IPC namespace 以及主机网络
+      hostPID: true
+      hostIPC: true
+      hostNetwork: true
+      # 第二：将主机的 /dev、/proc、/sys这些目录挂载到容器中，物理节点的很多数据都在这些目录中
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc  # top命令查看到的cpu状态就来自于/proc/stat, 命令free -h看到的内存状态就来自于/proc/meminfo
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: root
+          hostPath:
+            path: /
+      # 此外由于我们集群使用的是 kubeadm 搭建的，所以如果希望 master 节点也一起被监控，则需要添加相应的容忍
+      # 下面这条容忍设置的含义是：无论节点上存在何种 Taints，该 Pod 都会容忍这些 Taints，从而能够分布到所有节点上。
+      # 这是确保监控工具 DaemonSet 可被部署到 Kubernetes 集群所有节点上的常见做法。
+      tolerations:
+        - operator: 'Exists'
+
+      # 我们所有节点都有这个标签
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: node-exporter
+          #image: prom/node-exporter:v1.3.1
+          image: quay.io/prometheus/node-exporter:latest
+          args: # 选项定制详见：https://github.com/prometheus/node_exporter
+            - --web.listen-address=$(HOSTIP):9100
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            - --no-collector.hwmon # 禁用不需要的一些采集器
+            - --no-collector.nfs
+            - --no-collector.nfsd
+            - --no-collector.nvme
+            - --no-collector.dmi
+            - --no-collector.arp
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/containerd/.+|/var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.filesystem.ignored-fs-types=^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$
+          ports:
+            - containerPort: 9100
+          env:
+            - name: HOSTIP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests:
+              cpu: 150m
+              memory: 180Mi
+            limits:
+              cpu: 150m
+              memory: 180Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+            - name: sys
+              mountPath: /host/sys
+            - name: root
+              mountPath: /host/root
+              mountPropagation: HostToContainer
+              readOnly: true

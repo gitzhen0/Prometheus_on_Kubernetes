@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitor
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      volumes:
+        - name: alertcfg            # volume 名字
+          configMap:                # volume 的来源是一个 configmap
+            name: alert-config      # configmap 名字
+            items:
+              - key: config.yml     # 指定只取 ConfigMap alert-config 里的 config.yml 这个 key
+                path: config.yml    # 指定在 volume 里生成的文件名为 config.yml
+        - name: alerttemplate     
+          configMap:
+            name: alert-template
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.28.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - '--config.file=/etc/alertmanager/config.yml'
+          ports:
+            - containerPort: 9093
+              name: http
+          volumeMounts:
+            - mountPath: /etc/alertmanager           # 把 volume 挂载到容器里的 /etc/alertmanager 目录。 
+              name: alertcfg                         # 指定这个挂载用的是名字叫 alertcfg 的卷
+            - mountPath: /etc/alertmanager/templates 
+              name: alerttemplate
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 100m
+              memory: 256Mi

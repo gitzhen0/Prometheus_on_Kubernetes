@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitor
+
+resources:
+  - alertmanager-deploy.yaml
+  - alertmanager-service.yaml
+
+
+# 用渲染好的 alertmanager.yml 生成 ConfigMap
+configMapGenerator:
+  - name: alert-config              # 指定生成的 ConfigMap 名称叫 alert-config
+    files:                          # 指定用哪些本地文件生成 ConfigMap 的 data 部分
+      - config.yml=alertmanager-config.yaml
+  - name: alert-template
+    files:
+      - template_email.tmpl=template_email.tmpl
+generatorOptions:
+  disableNameSuffixHash: true   # 禁止哈希后缀，保持名字稳定（与 Deployment 中一致）

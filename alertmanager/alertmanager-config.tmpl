@@ -1,0 +1,87 @@
+# alertmanager-config.yaml is rendered by/generated from alertmanager-config.tmpl
+# 一、全局配置
+global:
+  # （1）当alertmanager持续多长时间未接收到告警后标记告警状态为 resolved（解决了）
+  resolve_timeout: 5m
+  
+  # （2）配置发邮件的邮箱
+  smtp_smarthost: 'smtp.qq.com:587'  # 网易是 'smtp.163.com:25'
+  smtp_from: '${SENDER_EMAIL}'
+  smtp_auth_username: '${SENDER_EMAIL}'
+  smtp_auth_password: '${EMAIL_AUTH_CODE}'  # 填入你开启 pop3/SMTP 时获得的授权码
+  smtp_require_tls: true  # 要求使用TLS加密（推荐用 true）
+
+# 二、设置报警的路由分发策略
+route:
+  # 定义用于告警分组的标签。当有多个告警消息有相同的 alertname 和 cluster 标签时，这些告警消息将会被聚合到同一个分组中
+  # 例如，接收到的报警信息里面有许多具有 cluster=XXX 和 alertname=YYY 这样的标签的报警信息将会批量被聚合到一个分组里面
+  # 意思就是 一些 Alert 的这俩标签的 value 同时一样的时候, Alert 会被聚合, 就会一次性通知一次(比如合到一封 email), 而不是这些 Alert 每个都发一次
+  group_by: ['alertname', 'cluster']
+  
+  # 当一个新的报警分组被创建后，需要等待至少 group_wait 时间来初始化通知，
+  # 这种方式可以确保您能有足够的时间为同一分组来获取/累积多个警报，然后一起触发这个报警信息。
+  group_wait: 30s
+
+  # 短期聚合: group_interval 确保在 interval 时间内，同一分组的多个告警将会合并/聚合到一起等待被发送，避免过于频繁的告警通知。
+  group_interval: 30s
+
+  # 长期提醒: repeat_interval 确保长时间未解决的告警不会被遗忘，Alertmanager每隔一段时间定期提醒相关人员，直到告警被解决。
+  # 就是如果一个 alert 一直没修复, alertmanager 不会一直重复发邮件, 而是最多每隔 interval 的时间(120s)发一次, 120s 内重复发的邮件会被忽略
+  repeat_interval: 120s  # 实验环境想快速看下效果，可以缩小该时间，比如设置为120s. 正常环境推荐 1h
+
+  # 上述两个参数的综合解释：
+  #（1）当一个新的告警被触发时，会立即发送初次通知
+  #（2）然后开始一个 group_interval 窗口（例如 30 秒）。
+  #    在 group_interval 窗口内，任何新的同分组告警会被聚合到一起，但不会立即触发发送。
+  #（3）聚合窗口结束后，
+  #    如果刚好抵达 repeat_interval 的时间点，聚合的告警会和原有未解决的告警一起发送通知。
+  #    如果没有抵达 repeat_interval 的时间点，则原有未解决的报警不会重复发送，直到到达下一个 repeat_interval 时间点。
+  # 这两个参数一起工作，确保短时间内的警报状态变化不会造成过多的重复通知，同时在长期未解决的情况下提供定期的提醒。
+
+  # 默认的receiver：如果一个报警没有被一个route匹配，则发送给 default 接收器，与下面receivers中定义的name呼应
+  # receiver: 默认的 receiver名字
+  receiver: default_receiver
+
+  routes: # 子路由规则。子路由继承父路由(route)的所有属性，可以进行覆盖和更具体的规则匹配。
+    - receiver: email_receiver  # 匹配此子路由的告警将发送到的接收器，该名字也与下面的receivers中定义的name呼应
+      group_wait: 10s  # 等待时间，可覆盖父路由的
+      group_by: ['instance']  # 根据 instance (node) 做聚合(Aggregation), instance 一样的 Alert 的一段时间内只发一次, 就不分开发很多次了
+      matchers:  # 告警标签匹配条件，只有匹配到特定条件的告警才会应用该子路由规则。
+        - team="node"  # 只有拥有 team=node 标签的告警才会路由到 email 接收器。匹配的是我们放在 Prometheus 的 configmap 里的 rules.yaml
+      continue: true # 即使这个路由匹配上了，也不要停止，继续往下匹配其它路由; 不会触发默认 receiver
+
+    - receiver: mywebhook  # 新增一条 route 使用 mywebhook 接收器
+      group_wait: 10s
+      group_by: ['instance']
+      matchers:
+        - team="node"
+
+templates:                      # 1、增加 templates 配置，指定模板文件
+  - '/etc/alertmanager/templates/template_email.tmpl'
+
+# 三、定义接收器，与上面的路由定义中引用的 receiver 相呼应
+receivers:
+  - name: default_receiver  # 默认接收器配置，未匹配任何特定路由规则的告警会发送到此接收器。
+    email_configs:
+      - to: '${RECEIVER_1_EMAIL}'
+        send_resolved: true  # 当告警恢复时是否也发送通知。
+        html: '{{ template "email.html" . }}'
+  
+  - name: email_receiver  # 名为 email_receiver 的接收器配置，与之前定义的子路由相对应。
+    email_configs:
+      - to: '${RECEIVER_2_EMAIL}'
+        send_resolved: true
+        html: '{{ template "email.html" . }}'
+  
+  - name: mywebhook  # 新增一个接收器
+    webhook_configs:
+      - url: 'http://webhook:8080/dingtalk/webhook1/send' 
+        send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      alertname: NodeMemoryUsage
+      severity: critical
+    target_match:
+      severity: normal
+    equal: ['instance']

@@ -1,0 +1,6 @@
+.env
+*.pem
+*.key
+kubeconfig.cp
+webhook-config.yaml
+alertmanager-config.yaml

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitor
+
+resources:
+  - prometheus-configmap.yaml
+  - prometheus-deploy.yaml
+  - prometheus-pv-pvc.yaml
+  - prometheus-rbac.yaml 
+  - prometheus-service.yaml
+  - prometheus-node-exporter.yaml
+  - service-controller-manager.yaml
+  - service-scheduler.yaml
+  - service-etcd.yaml

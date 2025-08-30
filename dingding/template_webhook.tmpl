@@ -1,0 +1,38 @@
+{{ define "template_webhook.tmpl" }}
+
+{{- if gt (len .Alerts.Firing) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+
+============ = **<font color='#FF0000'>告警</font>** = =============
+![警报 图标](https://bkimg.cdn.bcebos.com/pic/c9fcc3cec3fdfc039245f01859699094a4c27d1e884f?x-bce-process=image/format,f_auto/watermark,image_d2F0ZXIvYmFpa2UyNzI,g_7,xp_5,yp_5,P_20/resize,m_lfit,limit_1,h_1080)
+
+
+**告警名称:**    {{ $alert.Labels.alertname }}   
+**告警级别:**    {{ $alert.Labels.severity }} 级   
+**告警状态:**    {{ .Status }}   
+**告警实例:**    {{ $alert.Labels.instance }} {{ $alert.Labels.device }}   
+**告警概要:**    {{ .Annotations.summary }}   
+**告警详情:**    {{ $alert.Annotations.message }}{{ $alert.Annotations.description}}   
+**故障时间:**    {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}  
+============ = end = =============  
+{{- end }}
+{{- end }}
+
+{{- if gt (len .Alerts.Resolved) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+
+============ = <font color='#00FF00'>恢复</font> = =============   #绿色字体
+
+**告警实例:**    {{ .Labels.instance }}   
+**告警名称:**    {{ .Labels.alertname }}  
+**告警级别:**    {{ $alert.Labels.severity }} 级   
+**告警状态:**    {{   .Status }} 
+**告警概要:**    {{ $alert.Annotations.summary }}  
+**告警详情:**    {{ $alert.Annotations.message }}{{ $alert.Annotations.description}}  
+**故障时间:**    {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}  
+**恢复时间:**    {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}  
+
+============ = **end** = =============
+{{- end }}
+{{- end }}
+{{- end }}

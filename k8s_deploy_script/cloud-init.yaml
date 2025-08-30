@@ -1,0 +1,51 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+write_files:
+  - path: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+  - path: /etc/sysctl.d/k8s.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables=1
+      net.bridge.bridge-nf-call-ip6tables=1
+      net.ipv4.ip_forward=1
+
+runcmd:
+  # 1) 禁用 swap（临时 + 永久）
+  - [ bash, -lc, "swapoff -a" ]
+  - [ bash, -lc, "sed -i.bak '/\\sswap\\s/s/^/#/' /etc/fstab" ]
+
+  # 2) 加载内核模块与 sysctl
+  - [ bash, -lc, "modprobe overlay" ]
+  - [ bash, -lc, "modprobe br_netfilter" ]
+  - [ bash, -lc, "sysctl --system" ]
+
+  # 3) 安装 containerd
+  - [ bash, -lc, "apt-get install -y containerd" ]
+  - [ bash, -lc, "mkdir -p /etc/containerd" ]
+  - [ bash, -lc, "containerd config default > /etc/containerd/config.toml" ]
+  # (a) 使用 systemd cgroup
+  - [ bash, -lc, "sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml" ]
+  # (b) 将 sandbox_image 固定为 pause:3.10
+  - [ bash, -lc, "sed -i 's#sandbox_image = \".*\"#sandbox_image = \"registry.k8s.io/pause:3.10\"#' /etc/containerd/config.toml" ]
+  - [ bash, -lc, "systemctl enable --now containerd" ]
+
+  # 4) 安装 kubeadm/kubelet/kubectl（v1.31 稳定仓库）
+  - [ bash, -lc, "apt-get install -y apt-transport-https ca-certificates curl gpg" ]
+  - [ bash, -lc, "mkdir -p /etc/apt/keyrings" ]
+  - [ bash, -lc, "curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg" ]
+  - [ bash, -lc, "echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' > /etc/apt/sources.list.d/kubernetes.list" ]
+  - [ bash, -lc, "apt-get update" ]
+  - [ bash, -lc, "apt-get install -y kubelet kubeadm kubectl" ]
+  - [ bash, -lc, "apt-mark hold kubelet kubeadm kubectl" ]
+
+  # 5) 预拉镜像（含 pause:3.10），避免 init 时再拉导致失败/卡顿
+  - [ bash, -lc, "ctr -n k8s.io images pull registry.k8s.io/pause:3.10 || true" ]
+  # kubeadm 核心镜像（会根据 node 架构自动选镜像，多次执行也安全）
+  - [ bash, -lc, "kubeadm config images pull --kubernetes-version v1.31.11 || true" ]
+
+  # 6) 可选：将 /etc/resolv.conf 链接到 systemd-resolved（按需）
+  - [ bash, -lc, "test -f /etc/resolv.conf || ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf || true" ]
