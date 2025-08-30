@@ -186,7 +186,7 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
         * Create Dashboard
         * etc.
 ---
-## Debug Commands
+## Debugging Commands
 ```sh
 # switch namespace to monitor
 kubectl config set-context --current --namespace=monitor
