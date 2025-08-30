@@ -148,9 +148,9 @@ chmod +x deploy_project.sh
     * See all the monitored resources
 ---
 ### Alertmanager Features
-##### Alerts Definition
+#### Alerts Definition
 * see `prometheus/prometheus-configmap.yaml`
-##### Trigger Alerts
+#### Trigger Alerts
 * Use this command to trigger alerts
 	* can be used at whichever node
 ```sh
@@ -166,14 +166,14 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 		* (ensuring it exceeds the for: 2m threshold in alert rules)
 	* `--metrics-brief`
 		* Prints summarized metrics at the end of the test
-##### Receive Alert From Email
+#### Receive Alert From Email
 * skip
-##### Receive Alert From DingTalk
+#### Receive Alert From DingTalk
 * skip
-##### Inhibition
+#### Inhibition
 * Due to Inhibition rules setup inside, only one of two alerts will be sent
 
-##### Silence
+#### Silence
 * Currently no silence existing
 * Can be set up at Alertmanager's webpage
 	* `http://<whichever node's IP>:31093`
