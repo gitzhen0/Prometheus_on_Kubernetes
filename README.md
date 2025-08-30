@@ -176,7 +176,7 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 #### Silence
 * Currently no silence existing
 * Can be set up at Alertmanager's webpage
-	* `http://<whichever node's IP>:31093`
+	* `http://<Whichever_Nodes_IP>:31093`
 ---
 ### Grafana Features
 * Go to `http://<Whichever_Nodes_IP>:31300`
@@ -206,7 +206,7 @@ kubectl exec -it <pod-name> -n monitor -- bash
 kubectl apply -f prometheus-cm.yaml
 kubectl apply -f prometheus-configmap.yaml
 # Run this: 
-curl -i -X POST http://<whichever_Nodes_IP>:31090/-/reload
+curl -i -X POST http://<Whichever_Nodes_IP>:31090/-/reload
 
 # Check yaml file for a resource
 kubectl get deployment alertmanager -n monitor -o yaml
