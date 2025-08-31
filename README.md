@@ -229,6 +229,6 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 ```
 ---
 ## TODO
-1. Upgrade code quality
+1. Upgrade code quality, Remove deprecated code
 2. Deploy a redis on K8s and monitor it
 3. Try fix time problem for Silence 
