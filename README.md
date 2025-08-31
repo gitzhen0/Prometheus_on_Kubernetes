@@ -96,8 +96,8 @@ brew install helm
     * If you want Alertmanager to send DingDing message alerts ✅ 
 		1. Needs 2 Phone Number (at least one Chinese mobile number) for 2 DingTalk account, and create a group for them
 		2. Setup a Webhook Robot for the group
-			* **Detailed Operation Process Omitted -> Google it~**
-			* Will get a **Signature Secret** and a **URL**
+		* **Detailed Operation Process Omitted -> Google it~**
+			* Will eventually get a **Signature Secret** and a **URL**
 			* Put in `.env` file
 ---
 ### 2. Kubernetes Environment Setup
