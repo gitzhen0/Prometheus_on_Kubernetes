@@ -230,4 +230,5 @@ stress-ng --vm 2 --vm-bytes 2G --timeout 600s --metrics-brief
 ---
 ## TODO
 1. Upgrade code quality
-2. deploy a redis on K8s and monitor it
+2. Deploy a redis on K8s and monitor it
+3. Set K8s Cluster time to Asia/Shanghai or NYC
