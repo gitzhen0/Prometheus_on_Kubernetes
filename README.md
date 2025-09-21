@@ -120,7 +120,7 @@ kubectl get nodes -o wide
 ```
 ---
 ### 3. Deploy Prometheus on Kubernetes
-1. Grand script authorization
+1. Grant script authorization
 ```sh
 chmod +x deploy_project.sh
 ```
